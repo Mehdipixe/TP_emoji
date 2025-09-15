@@ -67,39 +67,54 @@ function waitForConfig() {
 export async function getSupabaseClient() {
     try {
         console.log('🔧 Initialisation du client Supabase via module...');
-        
+
         // 1. Attendre que la configuration soit disponible
-        await waitForConfig();
-        
+        await waitForConfig().catch((err) => {
+            console.error('❌ Configuration Supabase indisponible :', err);
+        });
+
         // 2. Attendre que la bibliothèque Supabase soit chargée
-        await waitForSupabaseLibrary();
-        
+        await waitForSupabaseLibrary().catch((err) => {
+            console.error('❌ Bibliothèque Supabase indisponible :', err);
+        });
+
         // 3. Vérifier que la configuration est valide
         if (!window.PRIVATE_CONFIG || !window.PRIVATE_CONFIG.supabaseUrl || !window.PRIVATE_CONFIG.supabaseAnonKey) {
-            throw new Error('Configuration Supabase invalide ou manquante.');
+            console.warn('⚠️ Configuration Supabase invalide ou manquante. Un client factice sera retourné.');
+            return {
+                from: () => ({ select: () => Promise.resolve({ data: [], error: 'Configuration Supabase manquante.' }) }),
+                // Ajoute d'autres méthodes factices si besoin
+            };
         }
-        
+
         // 4. Vérifier que la bibliothèque est accessible
         if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-            throw new Error('Bibliothèque Supabase non accessible ou createClient manquant.');
+            console.warn('⚠️ Bibliothèque Supabase non accessible ou createClient manquant. Un client factice sera retourné.');
+            return {
+                from: () => ({ select: () => Promise.resolve({ data: [], error: 'Bibliothèque Supabase non chargée.' }) }),
+                // Ajoute d'autres méthodes factices si besoin
+            };
         }
-        
+
         console.log('🔗 Création du client Supabase...');
         console.log('📡 URL:', window.PRIVATE_CONFIG.supabaseUrl);
-        
+
         // 5. Créer et retourner le client
         const { createClient } = window.supabase;
         const client = createClient(
-            window.PRIVATE_CONFIG.supabaseUrl, 
+            window.PRIVATE_CONFIG.supabaseUrl,
             window.PRIVATE_CONFIG.supabaseAnonKey
         );
-        
+
         console.log('✅ Client Supabase créé avec succès via module');
         return client;
-        
+
     } catch (error) {
         console.error('❌ Erreur lors de la création du client Supabase:', error);
-        throw error;
+        // Retourne un client factice pour éviter toute erreur bloquante
+        return {
+            from: () => ({ select: () => Promise.resolve({ data: [], error: 'Erreur lors de la création du client Supabase.' }) }),
+        };
     }
 }
 
