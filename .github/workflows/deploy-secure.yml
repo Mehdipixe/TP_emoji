@@ -36,27 +36,28 @@ jobs:
         run: |
           echo "🔑 Création du fichier de configuration sécurisé..."
 
-          # Créer le fichier private-config.js avec les secrets GitHub
-          cat > private-config.js << 'EOF'
-          // Configuration générée automatiquement par GitHub Actions
-          // 🔒 Ce fichier contient vos clés API et ne sera jamais visible dans le repository
+          # Générer dynamiquement le contenu de PRIVATE_CONFIG avec tous les secrets
+          echo "// Configuration générée automatiquement par GitHub Actions" > private-config.js
+          echo "// 🔒 Ce fichier contient vos clés API et ne sera jamais visible dans le repository" >> private-config.js
+          echo "window.PRIVATE_CONFIG = {" >> private-config.js
+          echo "  mode: 'supabase'," >> private-config.js
+          echo "  useRealtime: true," >> private-config.js
 
-          window.PRIVATE_CONFIG = {
-            mode: 'supabase',
-            supabaseUrl: '${{ secrets.SUPABASE_URL }}',
-            supabaseAnonKey: '${{ secrets.SUPABASE_ANON_KEY }}',
-            useRealtime: true,
+          # Injecter tous les secrets du dépôt (hors variables GitHub par défaut)
+          for secret in $(env | grep '^ACTIONS_SECRET_' | cut -d'=' -f1); do
+            key=$(echo $secret | sed 's/^ACTIONS_SECRET_//g' | tr '[:upper:]' '[:lower:]')
+            value=$(printenv $secret)
+            echo "  $key: '$value'," >> private-config.js
+          done
 
-            // Métadonnées du déploiement
-            deployedAt: '${{ github.event.head_commit.timestamp }}',
-            deployedBy: 'GitHub Actions',
-            commitSha: '${{ github.sha }}',
-            version: '1.0.0-secure'
-          };
-
-          console.log('🎭 Emoji Code Mood - Configuration automatique chargée');
-          console.log('⚡ Mode Collaboratif Supabase activé');
-          EOF
+          # Ajouter les métadonnées de déploiement
+          echo "  deployedAt: '${{ github.event.head_commit.timestamp }}'," >> private-config.js
+          echo "  deployedBy: 'GitHub Actions'," >> private-config.js
+          echo "  commitSha: '${{ github.sha }}'," >> private-config.js
+          echo "  version: '1.0.0-secure'" >> private-config.js
+          echo "};" >> private-config.js
+          echo "console.log('🎭 Emoji Code Mood - Configuration automatique chargée');" >> private-config.js
+          echo "console.log('⚡ Mode Collaboratif Supabase activé');" >> private-config.js
 
           echo "✅ Configuration créée avec succès"
 
